@@ -1,0 +1,35 @@
+---
+title: "Satnogs Analysis"
+author: "Ada Lazuli"
+date: '2022-10-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+# Data Loading
+
+`{bash, engine.opts='-l'}
+cat ../data/bad.csv.part* >> ../data/bad.csv
+cat ../data/good.csv.part* >> ../data/good.csv
+`
+
+```{r}
+bad <- read.csv("../data/bad.csv", nrows = 200)
+bad$signal <- FALSE
+good <- read.csv("../data/good.csv", nrows = 200)
+good$signal <- TRUE
+glimpse(good)
+df <- rbind(bad, good)
+```
+
+# Analysis
+
