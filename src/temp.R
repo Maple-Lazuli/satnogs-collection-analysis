@@ -33,3 +33,7 @@ ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency, color = Signal, fill = S
 ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency)) + geom_histogram() +  labs(title = "Histogram of L-Band Frequencies", x ="Frequency", y = "Counts")
 ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency)) + geom_histogram() +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")
 
+
+x <- df$Mode[1]
+x <- str_sub(x, 2, -2)
+str_extract(x, "[A-Z]+")

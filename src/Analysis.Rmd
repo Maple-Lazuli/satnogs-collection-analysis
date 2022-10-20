@@ -85,4 +85,6 @@ ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency)) + geom_histogram(bin
 ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")
 ```
 
+## Modulation Types
+
 
