@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Libraries
 ```{r}
 library(ggplot2)
+library(stringr)
 library(dplyr)
 ```
 
@@ -50,14 +51,14 @@ return("Unk")
 df <- df %>% mutate(Frequency = as.numeric(gsub(r"[\D]", "", Frequency))) %>%
   mutate(Frequency = Frequency/1000000)
 df$Band <- sapply(df$Frequency, FUN = label_band)
-counts <- df %>% group_by(Band) %>% count()
+counts <- df %>% group_by(Signal, Band) %>% count()
 
 ```
 
 ### UHF
 
 ```{r}
-ggplot(counts, aes(x = Band, y = n, color = Band, fill = Band)) + geom_col() + labs(title = "Frequency Bands", x ="Band", y = "Counts")
+ggplot(counts, aes(x = Band, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Frequency Bands", x ="Band", y = "Counts") + coord_flip()
 ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
 ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.4) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
 ```
@@ -86,5 +87,12 @@ ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency, color = Signal, fill 
 ```
 
 ## Modulation Types
+
+```{r}
+df <- df %>% mutate(Mode = str_sub(Mode, 2, -2)) %>%  mutate(Mode = str_extract(Mode, "[A-Z]+"))
+counts <- df %>% group_by(Signal, Mode) %>% count()
+ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Modulation Performance", x ="Modulation Type", y = "Counts") + coord_flip()
+```
+
 
 
