@@ -16,31 +16,82 @@ library(stringr)
 library(dplyr)
 ```
 
+
+# Background
+
+The Satellite Network Open Ground Stations (SATNOGS), was created in 2014 as part of a NASA Space App Challenge. Since then, the project has grown to over 200 sites around the world.
+
+The project targets satellites in a Low Earth Orbit (LEO) that transmit in the Very High Frequency (VHF) and Ultra High Frequency (UHF) ranges.  
+
+The SATNOGS project collects the observations from the ground stations and makes low resolution power spectral displays (PSDs) rendering of the signals available. 
+
+Since 2014, the SATNOGS network has collected over 6 million signals and presents itself as a wonderful source of labeled data for machine learning applications.
+
+A [SATNOGS Webscraper](https://github.com/Maple-Lazuli/satnogs-webscraper-v2) was used to pulls around 1 million observations from SATNOGS
+
 # Data Loading
 
-`{bash, engine.opts='-l'}
+The data was uploaded to GitHub in small chunks and will need to be re-combined. This was accomplished using `cat` to concatenate the scrapped CSVs into __bad.csv__ and __good.csv__, where __bad.csv__ contains observations that lack signals and __good.csv__ contains observations that contain signals.
+
+```{bash, engine.opts='-l'}
+rm ../data/bad.csv
+rm ../data/good.csv
+
 cat ../data/bad.csv.part* >> ../data/bad.csv
 cat ../data/good.csv.part* >> ../data/good.csv
-`
+```
+
+Next the data was loaded into R data frames, with a feature being added that indicates whether or not a signal is present.
 
 ```{r}
-bad <- read.csv("../data/bad.csv", nrows = 200)
+bad <- read.csv("../data/bad.csv")
 bad$Signal <- FALSE
-good <- read.csv("../data/good.csv", nrows = 200)
+good <- read.csv("../data/good.csv")
 good$Signal <- TRUE
-glimpse(good)
 df <- rbind(bad, good)
 ```
 
-# Analysis
+# Data Description
 
-## Frequency
+The data consists of a total of `r nrow(df)` observations with the following features for each:
+
+1. Observation ID - The unique numeric ID that SATNOGS assigned the observation event.
+2. Satellite - The name of the satellite from which the signals originated, having the form '<SSC #> - Common Name'.
+3. Station - The ground station that intercepted the signal.
+4. Status - The overall status of the observation, such as good, bad, failed, unknown.
+5. Status Message - The numeric representation of the status.
+6. Transmitter - Nuanced details about the signal used for transmission. 
+7. Frequency - The frequency of the signal in Hertz (Hz).
+8. Mode - High level detail on the signal used for transmission.
+9. Metadata - Free Form field encoded as a JSON that captures details of the observation.
+10. Downloads - Downloadable content, such as Audio, Waterfalls, or Data
+11. Waterfall_Status - The vetted status of the waterfall, such as signal present.
+12. Signal - Boolean value indicating whether a signal is present in the waterfall.
+
+```{r}
+glimpse(df)
+```
+
+
+## Frequency Description
+
+SATNOGS focuses on signals transmitted in VHF and UHF, however it does contain observations of signals that were transmitted in L-Band and S-Band. 
+
+To better understand the frequency coverage provided by SATNOGS, the data needed to be grouped into bins for each band, with the following criteria used for labeling:
+
+1. __VHF__ if the signal was between 30 and 300 MHz
+2. __UHF__ if the signal was between 300 and 100 MHz
+3. __L-Band__ if the signal was between 1000 and 2000 MHz
+4. __S-Band__ if the signal was between 2000 and 4000 MHz
+5. __UNK__ if the signal was in a range not specified previously
+
+
 
 ```{r}
 label_band <- function(freq) {
 if ((freq <= 300) & (freq >= 30))
 return("VHF")
-if ((freq <= 1000 ) & (freq > 30))
+if ((freq <= 1000 ) & (freq > 300))
 return("UHF")
 if ((freq <= 2000) & (freq > 1000))
 return("L-Band")
@@ -52,22 +103,24 @@ df <- df %>% mutate(Frequency = as.numeric(gsub(r"[\D]", "", Frequency))) %>%
   mutate(Frequency = Frequency/1000000)
 df$Band <- sapply(df$Frequency, FUN = label_band)
 counts <- df %>% group_by(Signal, Band) %>% count()
-
-```
-
-### UHF
-
-```{r}
 ggplot(counts, aes(x = Band, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Frequency Bands", x ="Band", y = "Counts") + coord_flip()
-ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.4) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
+ggplot(counts, aes(x = Band, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Frequency Bands", x ="Band", y = "Logarithmic Counts") + coord_flip() + scale_y_log10()
 ```
+
+
 
 ### VHF
 
 ```{r}
 ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of VHF Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of VHF Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, , alpha = 0.3) +  labs(title = "Histogram of VHF Frequencies", x ="Frequency", y = "Counts")
+```
+
+### UHF
+
+```{r}
+ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.4) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
 ```
 
 
@@ -75,7 +128,7 @@ ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency, color = Signal, fill = S
 
 ```{r}
 ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of L-Band Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of L-Band Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of L-Band Frequencies", x ="Frequency", y = "Counts")
 ```
 
 
@@ -83,8 +136,17 @@ ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency, color = Signal, fill 
 
 ```{r}
 ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")
 ```
+
+
+### Unk
+
+```{r}
+ggplot(df %>% filter(Band == "Unk"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of Un-Labeled Frequency Bands", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "Unk"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of Un-Labeled Frequency Bands", x ="Frequency", y = "Counts")
+```
+
 
 ## Modulation Types
 
@@ -92,7 +154,20 @@ ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency, color = Signal, fill 
 df <- df %>% mutate(Mode = str_sub(Mode, 2, -2)) %>%  mutate(Mode = str_extract(Mode, "[A-Z]+"))
 counts <- df %>% group_by(Signal, Mode) %>% count()
 ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Modulation Performance", x ="Modulation Type", y = "Counts") + coord_flip()
+ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Modulation Performance", x ="Modulation Type", y = "Logarithmic Counts") + coord_flip() + scale_y_log10()
+
 ```
 
+## Satellites
 
+```{r}
+counts <- df %>% group_by(Satellite) %>% count()
+```
+
+There are exactly `r length(unique(df$Satellite))` unique satellites, with the 5-Number summary for the observation count of each satellite is presented below:
+
+```{r}
+summary(counts$n)
+ggplot(counts, aes(x = n)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of Satellite Observation Occurences", x ="Number of Observations", y = "Occurences")
+```
 
