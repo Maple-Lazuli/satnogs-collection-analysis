@@ -1,16 +1,20 @@
 ---
 title: "Satnogs Analysis"
 author: "Ada Lazuli"
-date: '2022-10-15'
-output: html_document
+date: '2022-10-25'
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Libraries
-```{r}
+```{r, out.width = '100%', warning = FALSE, message=FALSE}
+# Libraries Used
 library(ggplot2)
 library(stringr)
 library(dplyr)
@@ -43,7 +47,7 @@ cat ../data/good.csv.part* >> ../data/good.csv
 
 Next the data was loaded into R data frames, with a feature being added that indicates whether or not a signal is present.
 
-```{r}
+```{r, out.width = '100%', warning = FALSE}
 bad <- read.csv("../data/bad.csv")
 bad$Signal <- FALSE
 good <- read.csv("../data/good.csv")
@@ -55,20 +59,20 @@ df <- rbind(bad, good)
 
 The data consists of a total of `r nrow(df)` observations with the following features for each:
 
-1. Observation ID - The unique numeric ID that SATNOGS assigned the observation event.
-2. Satellite - The name of the satellite from which the signals originated, having the form '<SSC #> - Common Name'.
-3. Station - The ground station that intercepted the signal.
-4. Status - The overall status of the observation, such as good, bad, failed, unknown.
-5. Status Message - The numeric representation of the status.
-6. Transmitter - Nuanced details about the signal used for transmission. 
-7. Frequency - The frequency of the signal in Hertz (Hz).
-8. Mode - High level detail on the signal used for transmission.
-9. Metadata - Free Form field encoded as a JSON that captures details of the observation.
-10. Downloads - Downloadable content, such as Audio, Waterfalls, or Data
-11. Waterfall_Status - The vetted status of the waterfall, such as signal present.
-12. Signal - Boolean value indicating whether a signal is present in the waterfall.
+1. _Observation ID_ - The unique numeric ID that SATNOGS assigned the observation event.
+2. _Satellite_ - The name of the satellite from which the signals originated, having the form '<SSC #> - Common Name'.
+3. _Station_ - The ground station that intercepted the signal.
+4. _Status_ - The overall status of the observation, such as good, bad, failed, unknown.
+5. _Status Message_ - The numeric representation of the status.
+6. _Transmitter_ - Nuanced details about the signal used for transmission. 
+7. _Frequency_ - The frequency of the signal in Hertz (Hz).
+8. _Mode_ - High level detail on the signal used for transmission.
+9. _Metadata_ - Free Form field encoded as a JSON that captures details of the observation.
+10. _Downloads_ - Downloadable content, such as Audio, Waterfalls, or Data
+11. _Waterfall_Status_ - The vetted status of the waterfall, such as signal present.
+12. _Signal_ - Boolean value indicating whether a signal is present in the waterfall.
 
-```{r}
+```{r, out.width = '100%', warning = FALSE}
 glimpse(df)
 ```
 
@@ -85,9 +89,7 @@ To better understand the frequency coverage provided by SATNOGS, the data needed
 4. __S-Band__ if the signal was between 2000 and 4000 MHz
 5. __UNK__ if the signal was in a range not specified previously
 
-
-
-```{r}
+```{r, out.width = '100%', warning = FALSE}
 label_band <- function(freq) {
 if ((freq <= 300) & (freq >= 30))
 return("VHF")
@@ -103,71 +105,91 @@ df <- df %>% mutate(Frequency = as.numeric(gsub(r"[\D]", "", Frequency))) %>%
   mutate(Frequency = Frequency/1000000)
 df$Band <- sapply(df$Frequency, FUN = label_band)
 counts <- df %>% group_by(Signal, Band) %>% count()
-ggplot(counts, aes(x = Band, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Frequency Bands", x ="Band", y = "Counts") + coord_flip()
-ggplot(counts, aes(x = Band, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Frequency Bands", x ="Band", y = "Logarithmic Counts") + coord_flip() + scale_y_log10()
+ggplot(counts, aes(x = Band, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Frequency Bands - Linear Scaling", x ="Band", y = "Counts") + coord_flip()
+ggplot(counts, aes(x = Band, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Frequency Bands - Logarithmic Scaling", x ="Band", y = "Logarithmic Counts") + coord_flip() + scale_y_log10()
 ```
 
-
+The normal scaling of the y-axis demonstrates that observations in UHF dominate in the dataset, followed by VHF. Moreover, the logarithmic scaled y-axis show that there is a similar ratio of signal presence and absence for each of the bands.
 
 ### VHF
 
-```{r}
+VHF is the range between 30MHz and 300MHz.
+
+```{r, out.width = '100%', warning = FALSE}
 ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of VHF Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, , alpha = 0.3) +  labs(title = "Histogram of VHF Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "VHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of VHF Frequencies", x ="Frequency", y = "Counts") + facet_grid(~ Signal) + coord_flip()
 ```
+
+The histograms show that the signals observed seem to be concentrated between 120 MHz and 160 MHz. The distribution for obsevations with and without signals seems to be very similar
 
 ### UHF
 
-```{r}
+UHF is the range between 300 MHz and 1000 MHz.
+
+```{r, out.width = '100%', warning = FALSE}
 ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.4) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "UHF"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.4) +  labs(title = "Histogram of UHF Frequencies", x ="Frequency", y = "Counts")  + facet_grid(~ Signal) + coord_flip()
 ```
 
+The histograms show that most of the transmissions in UHF are located between 400MHz and 500MHz, with lack of significant difference between the histograms for the presence of signal.
 
 ### L-Band
 
-```{r}
+L-Band was labeled to be between 1000 MHz and 2000 MHz
+
+```{r, out.width = '100%', warning = FALSE}
 ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of L-Band Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of L-Band Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "L-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of L-Band Frequencies", x ="Frequency", y = "Counts")  + facet_grid(~ Signal) + coord_flip()
 ```
 
+The histograms show a bi-modal distribution of frequencies in L-band, with the first concentration being near 1500MHz, where most of the observations are negative. The second concentration is near 1700MHz, with not significant differences for signal presence by frequency. 
 
 ### S-Band
 
-```{r}
+S-Band was labeled to be between 2000MHz and 4000MHz
+
+```{r, out.width = '100%', warning = FALSE}
 ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of S-Band Frequencies", x ="Frequency", y = "Counts")  + facet_grid(~ Signal) + coord_flip()
 ```
+
+The histograms depict two concentrations, with one between 2200 and 2300 MHz and the other near 2400MHz. For the concentration between 2200 and 2300 MHz, there are several negative observations on frequencies that lack corresponding positive signal observations. Additionally, for the concentration near 2400 MHz, there are significantly more negative observations than there are positive.
 
 
 ### Unk
 
-```{r}
+The Unk label applies to observations that did not meet the criteria of the previous classifications.
+
+```{r, out.width = '100%', warning = FALSE}
 ggplot(df %>% filter(Band == "Unk"), aes(x = Frequency)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of Un-Labeled Frequency Bands", x ="Frequency", y = "Counts")
-ggplot(df %>% filter(Band == "Unk"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of Un-Labeled Frequency Bands", x ="Frequency", y = "Counts")
+ggplot(df %>% filter(Band == "Unk"), aes(x = Frequency, color = Signal, fill = Signal)) + geom_histogram(bins = 1000, alpha = 0.3) +  labs(title = "Histogram of Un-Labeled Frequency Bands", x ="Frequency", y = "Counts")  + facet_grid(~ Signal) + coord_flip()
 ```
 
+The histograms show two concentrations. The first is a low frequency concentration that is below 30 MHz with similar counts for active and non-active signals. The second concentration is around 11000MHz with dissimilar occurences for signal presence.
 
 ## Modulation Types
 
-```{r}
+```{r, out.width = '100%', warning = FALSE}
 df <- df %>% mutate(Mode = str_sub(Mode, 2, -2)) %>%  mutate(Mode = str_extract(Mode, "[A-Z]+"))
 counts <- df %>% group_by(Signal, Mode) %>% count()
-ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Modulation Performance", x ="Modulation Type", y = "Counts") + coord_flip()
-ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Modulation Performance", x ="Modulation Type", y = "Logarithmic Counts") + coord_flip() + scale_y_log10()
+ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Modulation Performance - Linear Scaling", x ="Modulation Type", y = "Counts") + coord_flip()
+ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge", alpha = 0.5) + labs(title = "Modulation Performance - Logarithmic Scaling", x ="Modulation Type", y = "Logarithmic Counts") + coord_flip() + scale_y_log10()
 
 ```
 
+The linear scaled bar chart of modulation types show that Continuous Wave (CW) modulation types dominate the dataset and are followed by Frequency Shift Keying (FSK) modulations. The logarithmic scaled bar charts show unequal proportions of signal presence and absence for the various modulation types, such as the DQPSK only having negative observations and DSB having almost only positive observations.
+
 ## Satellites
 
-```{r}
+```{r, out.width = '100%', warning = FALSE}
 counts <- df %>% group_by(Satellite) %>% count()
 ```
 
 There are exactly `r length(unique(df$Satellite))` unique satellites, with the 5-Number summary for the observation count of each satellite is presented below:
 
-```{r}
+```{r, out.width = '100%', warning = FALSE}
 summary(counts$n)
 ggplot(counts, aes(x = n)) + geom_histogram(bins = 1000) +  labs(title = "Histogram of Satellite Observation Occurences", x ="Number of Observations", y = "Occurences")
 ```
 
+There are __`r sum(counts$n == 1)` satellites with only one observation__ and __`r sum(counts$n < 86)` satellites with less than 86 observations__.

@@ -37,3 +37,8 @@ ggplot(df %>% filter(Band == "S-Band"), aes(x = Frequency)) + geom_histogram() +
 x <- df$Mode[1]
 x <- str_sub(x, 2, -2)
 str_extract(x, "[A-Z]+")
+
+
+df <- df %>% mutate(Mode = str_sub(Mode, 2, -2)) %>%  mutate(Mode = str_extract(Mode, "[A-Z]+"))
+counts <- df %>% group_by(Signal, Mode) %>% count()
+ggplot(counts, aes(x = Mode, y = n, color = Signal, fill = Signal)) + geom_col(position = "dodge") + labs(title = "Frequency Bands", x ="Band", y = "Counts") + coord_flip()
